@@ -19,4 +19,7 @@ router.get(
   podcast_controller.podcast_episode_detail
 );
 
+// POST request for creating Podcast.
+router.post('/podcast/create', podcast_controller.podcast_create_post);
+
 module.exports = router;

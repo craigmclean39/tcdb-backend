@@ -1,4 +1,6 @@
 const Podcast = require('../models/podcast');
+const Parser = require('rss-parser');
+let parser = new Parser();
 const { body, validationResult } = require('express-validator');
 
 exports.podcast_list = function (req, res, next) {
@@ -66,4 +68,79 @@ exports.podcast_episode_detail = function (req, res, next) {
 
       res.json(results);
     });
+};
+
+exports.podcast_create_post = [
+  body('rss', 'Invalid URL').trim().isURL(),
+  (req, res, next) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      console.log(errors.array());
+      return res.status(422).send({ message: 'Invalid RSS Feed' });
+    }
+
+    getFeed(req.body.rss, (feed) => {
+      Podcast.findOne({ source: feed.src }, 'title', {}, (err, results) => {
+        if (err) {
+          console.log(err);
+        }
+
+        if (results) {
+          return res.status(409).send({
+            message: 'Podcast is already in database',
+          });
+        }
+
+        let imageDetail = {
+          link: feed.image.link,
+          url: feed.image.url,
+          title: feed.image.title,
+        };
+
+        let podcastDetail = {
+          title: feed.title ? feed.title : 'TITLE',
+          description: feed.description,
+          image: imageDetail,
+          link: feed.link,
+          language: feed.language,
+          copyright: feed.copyright,
+          source: feed.src,
+          episodes: [],
+        };
+
+        feed.items.forEach((episode) => {
+          let episodeDetail = {
+            title: episode.title ? episode.title : 'EPISODE TITLE',
+            link: episode.link,
+            content: episode.content,
+            contentSnippet: episode.contentSnippet,
+            guid: episode.guid,
+            pubDate: episode.pubDate,
+            isoDate: episode.isoDate,
+          };
+
+          podcastDetail.episodes.push(episodeDetail);
+        });
+
+        Podcast.updateOne(
+          { source: podcastDetail.source },
+          podcastDetail,
+          { upsert: true },
+          (err) => {
+            if (err) {
+              console.log(err);
+            }
+            res.status(200).json({ message: 'Podcast added successfully.' });
+          }
+        );
+      });
+    });
+  },
+];
+
+const getFeed = async function (source, callback) {
+  let feed = await parser.parseURL(source);
+  feed.src = source;
+  callback(feed);
 };
