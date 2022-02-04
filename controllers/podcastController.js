@@ -80,7 +80,13 @@ exports.podcast_create_post = [
       return res.status(422).send({ message: 'Invalid RSS Feed' });
     }
 
-    getFeed(req.body.rss, (feed) => {
+    getFeed(req.body.rss, (error, feed) => {
+      if (error) {
+        return res.status(409).send({
+          message: error.message,
+        });
+      }
+
       Podcast.findOne({ source: feed.src }, 'title', {}, (err, results) => {
         if (err) {
           console.log(err);
@@ -140,7 +146,11 @@ exports.podcast_create_post = [
 ];
 
 const getFeed = async function (source, callback) {
-  let feed = await parser.parseURL(source);
-  feed.src = source;
-  callback(feed);
+  try {
+    let feed = await parser.parseURL(source);
+    feed.src = source;
+    callback(null, feed);
+  } catch (err) {
+    callback(err, null);
+  }
 };
