@@ -16,15 +16,22 @@ let ImageSchema = new Schema({
   title: { type: String },
 });
 
-let PodcastSchema = new Schema({
-  title: { type: String, required: true, maxLength: 100 },
-  description: { type: String },
-  image: { type: ImageSchema },
-  link: { type: String },
-  language: { type: String },
-  copyright: { type: String },
-  source: { type: String },
-  episodes: [{ type: EpisodeSchema }],
+let PodcastSchema = new Schema(
+  {
+    title: { type: String, required: true, maxLength: 100 },
+    description: { type: String },
+    image: { type: ImageSchema },
+    link: { type: String },
+    language: { type: String },
+    copyright: { type: String },
+    source: { type: String },
+    episodes: [{ type: EpisodeSchema }],
+  },
+  { toJSON: { virtuals: true }, toObject: { virtuals: true } }
+);
+
+PodcastSchema.virtual('url').get(function () {
+  return `/podcast/${this._id}`;
 });
 
 module.exports = mongoose.model('Podcast', PodcastSchema);
