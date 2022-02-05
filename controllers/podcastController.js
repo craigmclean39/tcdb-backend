@@ -116,32 +116,65 @@ exports.podcast_create_post = [
         }
 
         let imageDetail = {
-          link: feed.image.link,
-          url: feed.image.url,
-          title: feed.image.title,
+          link: feed.image.link ? feed.image.link : '',
+          url: feed.image.url ? feed.image.url : '',
+          title: feed.image.title ? feed.image.title : '',
         };
 
         let podcastDetail = {
           title: feed.title ? feed.title : 'TITLE',
-          description: stripHtml(feed.description).result,
+          description: feed.description
+            ? stripHtml(feed.description).result
+            : '',
           image: imageDetail,
-          link: feed.link,
-          language: feed.language,
-          copyright: feed.copyright,
-          source: feed.src,
+          link: feed.link ? feed.link : '',
+          language: feed.language ? feed.language : '',
+          copyright: feed.copyright ? feed.copyright : '',
+          source: feed.src ? feed.src : '',
           episodes: [],
           dateUpdated: new Date(),
+          author: feed.itunes
+            ? feed.itunes.author
+              ? feed.itunes.author
+              : ''
+            : '',
+          email:
+            feed.itunes && feed.itunes.owner
+              ? feed.itunes.owner.email
+                ? feed.itunes.owner.email
+                : ''
+              : '',
+          ownerName:
+            feed.itunes && feed.itunes.owner
+              ? feed.itunes.owner.name
+                ? feed.itunes.owner.name
+                : ''
+              : '',
+          categories:
+            feed.itunes && feed.itunes.categories ? feed.itunes.categories : [],
         };
 
         feed.items.forEach((episode) => {
           let episodeDetail = {
             title: episode.title ? episode.title : 'EPISODE TITLE',
-            link: episode.link,
-            content: episode.content,
-            contentSnippet: episode.contentSnippet,
+            link: episode.link ? episode.link : '',
+            content: episode.content ? stripHtml(episode.content).result : '',
+            contentSnippet: episode.contentSnippet
+              ? episode.contentSnippet
+              : '',
             guid: episode.guid,
-            pubDate: episode.pubDate,
-            isoDate: episode.isoDate,
+            pubDate: episode.pubDate ? episode.pubDate : '',
+            isoDate: episode.isoDate ? episode.isoDate : '',
+            duration: episode.itunes
+              ? episode.itunes.duration
+                ? episode.itunes.duration
+                : ''
+              : '',
+            season: episode.itunes
+              ? episode.itunes.season
+                ? episode.itunes.season
+                : -1
+              : -1,
           };
 
           podcastDetail.episodes.push(episodeDetail);

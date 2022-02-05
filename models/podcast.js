@@ -9,6 +9,8 @@ let EpisodeSchema = new Schema({
   guid: { type: String },
   pubDate: { type: Date },
   isoDate: { type: Date },
+  duration: { type: String },
+  season: { type: Number },
 });
 
 let ImageSchema = new Schema({
@@ -25,8 +27,12 @@ let PodcastSchema = new Schema(
     language: { type: String },
     copyright: { type: String },
     source: { type: String },
+    author: { type: String },
+    email: { type: String },
+    ownerName: { type: String },
     episodes: [{ type: EpisodeSchema }],
     dateUpdated: { type: Date, required: true },
+    categories: [{ type: String }],
   },
   { toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
