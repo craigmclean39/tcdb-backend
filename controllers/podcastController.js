@@ -2,6 +2,7 @@ const Podcast = require('../models/podcast');
 const Parser = require('rss-parser');
 let parser = new Parser();
 const { body, validationResult } = require('express-validator');
+const { stripHtml } = require('string-strip-html');
 
 exports.podcast_list = function (req, res, next) {
   Podcast.find({}, 'title url')
@@ -122,13 +123,14 @@ exports.podcast_create_post = [
 
         let podcastDetail = {
           title: feed.title ? feed.title : 'TITLE',
-          description: feed.description,
+          description: stripHtml(feed.description).result,
           image: imageDetail,
           link: feed.link,
           language: feed.language,
           copyright: feed.copyright,
           source: feed.src,
           episodes: [],
+          dateUpdated: new Date(),
         };
 
         feed.items.forEach((episode) => {

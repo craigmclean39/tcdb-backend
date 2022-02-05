@@ -26,6 +26,7 @@ let PodcastSchema = new Schema(
     copyright: { type: String },
     source: { type: String },
     episodes: [{ type: EpisodeSchema }],
+    dateUpdated: { type: Date, required: true },
   },
   { toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
