@@ -1,8 +1,10 @@
 const Podcast = require('../models/podcast');
+const Episode = require('../models/episode');
 const Parser = require('rss-parser');
 let parser = new Parser();
 const { body, validationResult } = require('express-validator');
 const { stripHtml } = require('string-strip-html');
+const async = require('async');
 
 exports.podcast_list = function (req, res, next) {
   Podcast.find({}, 'title url')
@@ -154,7 +156,71 @@ exports.podcast_create_post = [
             feed.itunes && feed.itunes.categories ? feed.itunes.categories : [],
         };
 
-        feed.items.forEach((episode) => {
+        async.each(
+          feed.items,
+          (episode, next) => {
+            console.log('--');
+
+            let episodeDetail = {
+              title: episode.title ? episode.title : 'EPISODE TITLE',
+              link: episode.link ? episode.link : '',
+              content: episode.content ? stripHtml(episode.content).result : '',
+              contentSnippet: episode.contentSnippet
+                ? episode.contentSnippet
+                : '',
+              guid: episode.guid,
+              pubDate: episode.pubDate ? episode.pubDate : '',
+              isoDate: episode.isoDate ? episode.isoDate : '',
+              duration: episode.itunes
+                ? episode.itunes.duration
+                  ? episode.itunes.duration
+                  : ''
+                : '',
+              season: episode.itunes
+                ? episode.itunes.season
+                  ? episode.itunes.season
+                  : -1
+                : -1,
+            };
+
+            Episode.findOneAndUpdate(
+              {
+                guid: episode.guid,
+              },
+              episodeDetail,
+              { upsert: true, new: true },
+              (err, ep) => {
+                if (err) {
+                  console.log(err);
+                }
+                if (ep) {
+                  podcastDetail.episodes.push(ep._id);
+                }
+
+                next();
+              }
+            );
+          },
+          (err) => {
+            console.log('Conmplete');
+            Podcast.findOneAndUpdate(
+              { source: podcastDetail.source },
+              podcastDetail,
+              { upsert: true, new: true },
+              (err, pod) => {
+                if (err) {
+                  console.log(err);
+                }
+
+                res
+                  .status(200)
+                  .json({ message: 'Podcast added successfully.' });
+              }
+            );
+          }
+        );
+
+        /*         feed.items.forEach((episode) => {
           let episodeDetail = {
             title: episode.title ? episode.title : 'EPISODE TITLE',
             link: episode.link ? episode.link : '',
@@ -177,20 +243,24 @@ exports.podcast_create_post = [
               : -1,
           };
 
-          podcastDetail.episodes.push(episodeDetail);
-        });
-
-        Podcast.updateOne(
-          { source: podcastDetail.source },
-          podcastDetail,
-          { upsert: true },
-          (err) => {
-            if (err) {
-              console.log(err);
+          Episode.findOneAndUpdate(
+            {
+              guid: episode.guid,
+            },
+            episodeDetail,
+            { upsert: true, new: true },
+            (err, ep) => {
+              if (err) {
+                console.log(err);
+              }
+              if (ep) {
+                podcastDetail.episodes.push(ep._id);
+              }
             }
-            res.status(200).json({ message: 'Podcast added successfully.' });
-          }
-        );
+          );
+
+          //podcastDetail.episodes.push(episodeDetail);
+        }); */
       });
     });
   },
@@ -205,3 +275,54 @@ const getFeed = async function (source, callback) {
     callback(err, null);
   }
 };
+
+exports.search = [
+  body('search', 'Error').trim().isLength({ min: 1 }).escape(),
+  (req, res, next) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      console.log(errors.array());
+      return res.status(422).send({ message: 'Invalid Search' });
+    }
+
+    console.log(req.body.search);
+
+    async.parallel(
+      [
+        function (next) {
+          Podcast.search(
+            {
+              query_string: {
+                query: req.body.search,
+              },
+            },
+            function (err, results) {
+              console.log(results);
+              next(null, results);
+              //res.status(200).json({ message: 'Search successful' });
+            }
+          );
+        },
+        function (next) {
+          Episode.search(
+            {
+              query_string: {
+                query: req.body.search,
+              },
+            },
+            function (err, results) {
+              console.log(results);
+              next(null, results);
+              //res.status(200).json({ message: 'Search successful' });
+            }
+          );
+        },
+      ],
+      function (err, results) {
+        console.log(results);
+        res.status(200).json({ message: 'Search successful' });
+      }
+    );
+  },
+];
