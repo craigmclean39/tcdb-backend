@@ -33,6 +33,22 @@ exports.podcast_detail = function (req, res, next) {
   });
 };
 
+exports.podcast_delete = function (req, res, next) {
+  Podcast.findByIdAndDelete(req.params.id, function (err, results) {
+    if (err) {
+      return next(err);
+    }
+
+    if (!results) {
+      return res.status(404).send({
+        message: 'Podcast not found',
+      });
+    }
+
+    res.status(200).json({ message: 'Podcast deleted.' });
+  });
+};
+
 exports.podcast_episodes = function (req, res, next) {
   Podcast.findById(req.params.id, 'episodes').exec((err, results) => {
     if (err) {

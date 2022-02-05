@@ -10,6 +10,9 @@ router.get('/podcasts', podcast_controller.podcast_list);
 // GET request for single podcast
 router.get('/podcast/:id', podcast_controller.podcast_detail);
 
+// POST Delete for single podcast
+router.post('/podcast/:id/delete', podcast_controller.podcast_delete);
+
 // GET request for all podcast episodes
 router.get('/podcast/:id/episodes', podcast_controller.podcast_episodes);
 
