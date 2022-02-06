@@ -20,20 +20,22 @@ exports.podcast_list = function (req, res, next) {
 
 exports.podcast_detail = function (req, res, next) {
   //Exclude the episode info
-  Podcast.findById(req.params.id, '-episodes').exec((err, results) => {
-    if (err) {
-      return next(err);
-    }
+  Podcast.findById(req.params.id)
+    .populate('episodes')
+    .exec((err, results) => {
+      if (err) {
+        return next(err);
+      }
 
-    if (results === null) {
-      let error = new Error('Podcast not found');
-      error.status = 404;
-      return next(error);
-    }
+      if (results === null) {
+        let error = new Error('Podcast not found');
+        error.status = 404;
+        return next(error);
+      }
 
-    res.json(results);
-    next();
-  });
+      res.json(results);
+      next();
+    });
 };
 
 exports.podcast_delete = function (req, res, next) {
@@ -140,17 +142,20 @@ exports.podcast_create_post = [
         });
       }
 
+      //Check if the Podcast exists by comparing sources
       Podcast.findOne({ source: feed.src }, 'title', {}, (err, results) => {
         if (err) {
           console.log(err);
         }
 
+        //return if it already exists
         if (results) {
           return res.status(409).send({
             message: 'Podcast is already in database',
           });
         }
 
+        //Otherwise grab the info out of the feed
         let imageDetail = {
           link: feed.image.link ? feed.image.link : '',
           url: feed.image.url ? feed.image.url : '',
@@ -190,6 +195,8 @@ exports.podcast_create_post = [
             feed.itunes && feed.itunes.categories ? feed.itunes.categories : [],
         };
 
+        //First, add all the episodes to the database, we do this first so we have
+        //the object ids to add to the podcast
         async.each(
           feed.items,
           (episode, next) => {
@@ -225,6 +232,8 @@ exports.podcast_create_post = [
                 if (err) {
                   console.log(err);
                 }
+
+                //Add the episode ID to the podcast
                 if (ep) {
                   podcastDetail.episodes.push(ep._id);
                 }
