@@ -37,7 +37,11 @@ exports.podcast_detail = function (req, res, next) {
 };
 
 exports.podcast_delete = function (req, res, next) {
-  Podcast.findByIdAndDelete(req.params.id, function (err, results) {
+  //To make sure the podcast info is removed from elasticsearch
+  //we need to call remove on the document itself, thus I'm calling
+  //findById and then calling remove on the results as opposed to
+  //findByIdAndDelete which doesn't properly remove from elasticsearch
+  Podcast.findById(req.params.id, function (err, results) {
     if (err) {
       return next(err);
     }
@@ -48,7 +52,37 @@ exports.podcast_delete = function (req, res, next) {
       });
     }
 
-    res.status(200).json({ message: 'Podcast deleted.' });
+    if (results.episodes) {
+      async.each(
+        results.episodes,
+        (episode, next) => {
+          Episode.findById(episode._id, function (err, ep) {
+            if (err) {
+              return next(err);
+            }
+
+            ep.remove((err) => {
+              if (err) {
+                next(err);
+              }
+              next(null);
+            });
+          });
+        },
+        (err) => {
+          console.log('Episodes Removed');
+
+          results.remove((err) => {
+            if (err) {
+              return res.status(404).send({
+                message: 'Podcast not found',
+              });
+            }
+            res.status(200).json({ message: 'Podcast deleted.' });
+          });
+        }
+      );
+    }
   });
 };
 
@@ -159,8 +193,6 @@ exports.podcast_create_post = [
         async.each(
           feed.items,
           (episode, next) => {
-            console.log('--');
-
             let episodeDetail = {
               title: episode.title ? episode.title : 'EPISODE TITLE',
               link: episode.link ? episode.link : '',
@@ -202,7 +234,6 @@ exports.podcast_create_post = [
             );
           },
           (err) => {
-            console.log('Conmplete');
             Podcast.findOneAndUpdate(
               { source: podcastDetail.source },
               podcastDetail,
@@ -219,48 +250,6 @@ exports.podcast_create_post = [
             );
           }
         );
-
-        /*         feed.items.forEach((episode) => {
-          let episodeDetail = {
-            title: episode.title ? episode.title : 'EPISODE TITLE',
-            link: episode.link ? episode.link : '',
-            content: episode.content ? stripHtml(episode.content).result : '',
-            contentSnippet: episode.contentSnippet
-              ? episode.contentSnippet
-              : '',
-            guid: episode.guid,
-            pubDate: episode.pubDate ? episode.pubDate : '',
-            isoDate: episode.isoDate ? episode.isoDate : '',
-            duration: episode.itunes
-              ? episode.itunes.duration
-                ? episode.itunes.duration
-                : ''
-              : '',
-            season: episode.itunes
-              ? episode.itunes.season
-                ? episode.itunes.season
-                : -1
-              : -1,
-          };
-
-          Episode.findOneAndUpdate(
-            {
-              guid: episode.guid,
-            },
-            episodeDetail,
-            { upsert: true, new: true },
-            (err, ep) => {
-              if (err) {
-                console.log(err);
-              }
-              if (ep) {
-                podcastDetail.episodes.push(ep._id);
-              }
-            }
-          );
-
-          //podcastDetail.episodes.push(episodeDetail);
-        }); */
       });
     });
   },
