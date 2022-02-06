@@ -3,7 +3,13 @@ let mongoosastic = require('mongoosastic');
 let Schema = mongoose.Schema;
 
 let EpisodeSchema = new Schema({
-  title: { type: String, required: true, maxLength: 100, es_indexed: true },
+  title: {
+    type: String,
+    required: true,
+    maxLength: 100,
+    es_indexed: true,
+    es_boost: 1.5,
+  },
   link: { type: String },
   content: { type: String, es_indexed: true },
   contentSnippet: { type: String },

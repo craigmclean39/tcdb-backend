@@ -9,7 +9,13 @@ let ImageSchema = new Schema({
 
 let PodcastSchema = new Schema(
   {
-    title: { type: String, required: true, maxLength: 100, es_indexed: true },
+    title: {
+      type: String,
+      required: true,
+      maxLength: 100,
+      es_indexed: true,
+      es_boost: 2.0,
+    },
     description: { type: String, es_indexed: true },
     image: { type: ImageSchema },
     link: { type: String },

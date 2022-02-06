@@ -43,20 +43,20 @@ exports.podcast_delete = function (req, res, next) {
   //we need to call remove on the document itself, thus I'm calling
   //findById and then calling remove on the results as opposed to
   //findByIdAndDelete which doesn't properly remove from elasticsearch
-  Podcast.findById(req.params.id, function (err, results) {
+  Podcast.findById(req.params.id, function (err, podcast) {
     if (err) {
       return next(err);
     }
 
-    if (!results) {
+    if (!podcast) {
       return res.status(404).send({
         message: 'Podcast not found',
       });
     }
 
-    if (results.episodes) {
+    if (podcast.episodes) {
       async.each(
-        results.episodes,
+        podcast.episodes,
         (episode, next) => {
           Episode.findById(episode._id, function (err, ep) {
             if (err) {
@@ -65,21 +65,43 @@ exports.podcast_delete = function (req, res, next) {
 
             ep.remove((err) => {
               if (err) {
+                console.log('**************Episode NOT Removed');
                 next(err);
               }
-              next(null);
+
+              ep.on('es-removed', (err, res) => {
+                if (err) {
+                  console.log('**************Episode DOC NOT Removed');
+                } else {
+                  console.log('Episode DOC Removed');
+                }
+              });
+
+              console.log('Episode Removed');
+              next();
             });
           });
         },
         (err) => {
           console.log('Episodes Removed');
 
-          results.remove((err) => {
+          podcast.remove((err) => {
             if (err) {
+              console.log('**************Podcast NOT Removed');
               return res.status(404).send({
                 message: 'Podcast not found',
               });
             }
+
+            podcast.on('es-removed', (err, res) => {
+              if (err) {
+                console.log('**************Podcast DOC NOT Removed');
+              } else {
+                console.log('Podcast DOC Removed');
+              }
+            });
+
+            console.log('Podcast Removed');
             res.status(200).json({ message: 'Podcast deleted.' });
           });
         }
@@ -108,21 +130,19 @@ exports.podcast_episodes = function (req, res, next) {
 exports.podcast_episode_detail = function (req, res, next) {
   console.log(req.params);
 
-  Podcast.findById(req.params.id)
-    .select({ episodes: { $elemMatch: { id: req.params.episodeid } } })
-    .exec((err, results) => {
-      if (err) {
-        return next(err);
-      }
+  Episode.findById(req.params.id).exec((err, results) => {
+    if (err) {
+      return next(err);
+    }
 
-      if (results === null) {
-        let error = new Error('Episode not found');
-        error.status = 404;
-        return next(error);
-      }
+    if (results === null) {
+      let error = new Error('Episode not found');
+      error.status = 404;
+      return next(error);
+    }
 
-      res.json(results);
-    });
+    res.json(results);
+  });
 };
 
 exports.podcast_create_post = [
@@ -284,8 +304,7 @@ exports.search = [
       return res.status(422).send({ message: 'Invalid Search' });
     }
 
-    console.log(req.body.search);
-
+    //Search both Podcast and Episodes
     async.parallel(
       [
         function (next) {
@@ -296,7 +315,6 @@ exports.search = [
               },
             },
             function (err, results) {
-              console.log(results);
               next(null, results);
               //res.status(200).json({ message: 'Search successful' });
             }
@@ -310,7 +328,6 @@ exports.search = [
               },
             },
             function (err, results) {
-              console.log(results);
               next(null, results);
               //res.status(200).json({ message: 'Search successful' });
             }
@@ -318,8 +335,31 @@ exports.search = [
         },
       ],
       function (err, results) {
-        console.log(results);
-        res.status(200).json({ message: 'Search successful' });
+        const hits = [];
+        results.forEach((result) => {
+          hits.push(...result.hits.hits);
+        });
+
+        hits.sort((a, b) => {
+          if (a._score < b._score) return 1;
+          if (a._score > b._score) return -1;
+          return 0;
+        });
+
+        const returnJson = {
+          hits: [],
+        };
+
+        hits.forEach((hit) => {
+          console.log(hit);
+          const hitJson = {
+            type: hit._index,
+            id: hit._id,
+          };
+          returnJson.hits.push(hitJson);
+        });
+
+        res.status(200).json(returnJson);
       }
     );
   },

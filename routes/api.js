@@ -17,10 +17,7 @@ router.post('/podcast/:id/delete', podcast_controller.podcast_delete);
 router.get('/podcast/:id/episodes', podcast_controller.podcast_episodes);
 
 // GET request for a single podcast episode
-router.get(
-  '/podcast/:id/episode/:episodeid',
-  podcast_controller.podcast_episode_detail
-);
+router.get('/episode/:id', podcast_controller.podcast_episode_detail);
 
 // POST request for creating Podcast.
 router.post('/podcast/create', podcast_controller.podcast_create_post);
