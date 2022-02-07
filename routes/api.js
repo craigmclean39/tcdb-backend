@@ -25,4 +25,6 @@ router.post('/podcast/create', podcast_controller.podcast_create_post);
 // GET request to do a search
 router.post('/search', podcast_controller.search);
 
+router.post('/populate', podcast_controller.populate);
+
 module.exports = router;

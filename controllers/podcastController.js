@@ -147,7 +147,7 @@ exports.podcast_episode_detail = function (req, res, next) {
 
 exports.podcast_create_post = [
   body('rss', 'Invalid URL').trim().isURL(),
-  (req, res, next) => {
+  async (req, res, next) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
@@ -155,132 +155,8 @@ exports.podcast_create_post = [
       return res.status(422).send({ message: 'Invalid RSS Feed' });
     }
 
-    getFeed(req.body.rss, (error, feed) => {
-      if (error) {
-        return res.status(409).send({
-          message: error.message,
-        });
-      }
-
-      //Check if the Podcast exists by comparing sources
-      Podcast.findOne({ source: feed.src }, 'title', {}, (err, results) => {
-        if (err) {
-          console.log(err);
-        }
-
-        //return if it already exists
-        if (results) {
-          return res.status(409).send({
-            message: 'Podcast is already in database',
-          });
-        }
-
-        //Otherwise grab the info out of the feed
-        let imageDetail = {
-          link: feed.image.link ? feed.image.link : '',
-          url: feed.image.url ? feed.image.url : '',
-          title: feed.image.title ? feed.image.title : '',
-        };
-
-        let podcastDetail = {
-          title: feed.title ? feed.title : 'TITLE',
-          description: feed.description
-            ? stripHtml(feed.description).result
-            : '',
-          image: imageDetail,
-          link: feed.link ? feed.link : '',
-          language: feed.language ? feed.language : '',
-          copyright: feed.copyright ? feed.copyright : '',
-          source: feed.src ? feed.src : '',
-          episodes: [],
-          dateUpdated: new Date(),
-          author: feed.itunes
-            ? feed.itunes.author
-              ? feed.itunes.author
-              : ''
-            : '',
-          email:
-            feed.itunes && feed.itunes.owner
-              ? feed.itunes.owner.email
-                ? feed.itunes.owner.email
-                : ''
-              : '',
-          ownerName:
-            feed.itunes && feed.itunes.owner
-              ? feed.itunes.owner.name
-                ? feed.itunes.owner.name
-                : ''
-              : '',
-          categories:
-            feed.itunes && feed.itunes.categories ? feed.itunes.categories : [],
-        };
-
-        //First, add all the episodes to the database, we do this first so we have
-        //the object ids to add to the podcast
-        async.each(
-          feed.items,
-          (episode, next) => {
-            let episodeDetail = {
-              title: episode.title ? episode.title : 'EPISODE TITLE',
-              link: episode.link ? episode.link : '',
-              content: episode.content ? stripHtml(episode.content).result : '',
-              contentSnippet: episode.contentSnippet
-                ? episode.contentSnippet
-                : '',
-              guid: episode.guid,
-              pubDate: episode.pubDate ? episode.pubDate : '',
-              isoDate: episode.isoDate ? episode.isoDate : '',
-              duration: episode.itunes
-                ? episode.itunes.duration
-                  ? episode.itunes.duration
-                  : ''
-                : '',
-              season: episode.itunes
-                ? episode.itunes.season
-                  ? episode.itunes.season
-                  : -1
-                : -1,
-            };
-
-            Episode.findOneAndUpdate(
-              {
-                guid: episode.guid,
-              },
-              episodeDetail,
-              { upsert: true, new: true },
-              (err, ep) => {
-                if (err) {
-                  console.log(err);
-                }
-
-                //Add the episode ID to the podcast
-                if (ep) {
-                  podcastDetail.episodes.push(ep._id);
-                }
-
-                next();
-              }
-            );
-          },
-          (err) => {
-            Podcast.findOneAndUpdate(
-              { source: podcastDetail.source },
-              podcastDetail,
-              { upsert: true, new: true },
-              (err, pod) => {
-                if (err) {
-                  console.log(err);
-                }
-
-                res
-                  .status(200)
-                  .json({ message: 'Podcast added successfully.' });
-              }
-            );
-          }
-        );
-      });
-    });
+    await AddSinglePodcastFromFeed(req.body.rss);
+    res.status(200).json({ message: 'Podcast Added.' });
   },
 ];
 
@@ -364,3 +240,161 @@ exports.search = [
     );
   },
 ];
+
+const AddSinglePodcastFromFeed = async (rssUrl, error) => {
+  let feed;
+  await getFeed(rssUrl, (error, res) => {
+    if (error) {
+      return;
+    }
+    feed = res;
+  });
+
+  console.log('Feed Added: ' + rssUrl);
+
+  let podcast;
+  try {
+    podcast = await Podcast.findOne({ source: feed.src }, 'title').exec();
+    if (!podcast) {
+      console.log('Podcast not found');
+    } else {
+      console.log('Podcast found');
+      return;
+    }
+  } catch (err) {
+    return;
+  }
+
+  //Pod not found
+  let imageDetail = {
+    link: feed.image.link ? feed.image.link : '',
+    url: feed.image.url ? feed.image.url : '',
+    title: feed.image.title ? feed.image.title : '',
+  };
+
+  let podcastDetail = {
+    title: feed.title ? feed.title : 'TITLE',
+    description: feed.description ? stripHtml(feed.description).result : '',
+    image: imageDetail,
+    link: feed.link ? feed.link : '',
+    language: feed.language ? feed.language : '',
+    copyright: feed.copyright ? feed.copyright : '',
+    source: feed.src ? feed.src : '',
+    episodes: [],
+    dateUpdated: new Date(),
+    author: feed.itunes ? (feed.itunes.author ? feed.itunes.author : '') : '',
+    email:
+      feed.itunes && feed.itunes.owner
+        ? feed.itunes.owner.email
+          ? feed.itunes.owner.email
+          : ''
+        : '',
+    ownerName:
+      feed.itunes && feed.itunes.owner
+        ? feed.itunes.owner.name
+          ? feed.itunes.owner.name
+          : ''
+        : '',
+    categories:
+      feed.itunes && feed.itunes.categories ? feed.itunes.categories : [],
+  };
+
+  let podId;
+  try {
+    const pod = await Podcast.findOneAndUpdate(
+      { source: podcastDetail.source },
+      podcastDetail,
+      { upsert: true, new: true }
+    );
+
+    console.log('Podcast Added to DB');
+    console.log(pod._id);
+    podId = pod._id;
+  } catch (err) {
+    console.log(err);
+    return;
+  }
+
+  let episodeDetails = [];
+  feed.items.forEach((episode) => {
+    let episodeDetail = {
+      title: episode.title ? episode.title : 'EPISODE TITLE',
+      link: episode.link ? episode.link : '',
+      content: episode.content ? stripHtml(episode.content).result : '',
+      contentSnippet: episode.contentSnippet ? episode.contentSnippet : '',
+      guid: episode.guid,
+      pubDate: episode.pubDate ? episode.pubDate : '',
+      isoDate: episode.isoDate ? episode.isoDate : '',
+      duration: episode.itunes
+        ? episode.itunes.duration
+          ? episode.itunes.duration
+          : ''
+        : '',
+      season: episode.itunes
+        ? episode.itunes.season
+          ? episode.itunes.season
+          : -1
+        : -1,
+      podcast: podId,
+    };
+
+    episodeDetails.push(episodeDetail);
+  });
+
+  let episodeIds = [];
+  await async.each(episodeDetails, (detail, callback) => {
+    Episode.findOneAndUpdate(
+      {
+        guid: detail.guid,
+      },
+      detail,
+      { upsert: true, new: true },
+      (err, doc) => {
+        if (err) {
+          return;
+        }
+
+        episodeIds.push(doc._id);
+        console.log('Episode Added');
+        callback();
+      }
+    );
+  });
+
+  console.log('All Episodes Added');
+
+  await Podcast.findOneAndUpdate(
+    { source: podcastDetail.source },
+    { episodes: episodeIds },
+    { upsert: true, new: true }
+  );
+
+  console.log('Episode Ids Added to Podcast');
+};
+
+exports.populate = async (req, res, next) => {
+  const sources = [
+    'https://rss.art19.com/accused',
+    'https://feeds.megaphone.fm/HSW9433683425',
+    'https://rss.art19.com/alligator-candy',
+    'https://podcasts.files.bbci.co.uk/p060ms2h.rss',
+    'https://feeds.megaphone.fm/dead-and-gone',
+    'https://yourownbackyard.libsyn.com/rss',
+    'http://feeds.hubbardpodcasts.com/22HoursAnAmericanNightmare',
+    'https://www.podcastone.com/podcast?categoryID2=2235',
+    'https://www.podcastone.com/podcast?categoryID2=1119',
+    'http://feeds.feedburner.com/CarollaReasonableDoubt',
+    'http://www.podcastone.com/podcast?categoryID2=2208',
+    'https://www.podcastone.com/podcast?categoryID2=1983',
+    'http://www.podcastone.com/podcast?categoryID2=2197',
+    'http://www.podcastone.com/podcast?categoryID2=2182',
+    'http://www.podcastone.com/podcast?categoryID2=2219',
+    'http://www.podcastone.com/podcast?categoryID2=2202',
+    'http://www.podcastone.com/podcast?categoryID2=2243',
+    'http://www.podcastone.com/podcast?categoryID2=1182',
+  ];
+
+  await async.each(sources, AddSinglePodcastFromFeed);
+  console.log('DONE');
+  res.status(200).json({ message: 'Populate Success.' });
+};
