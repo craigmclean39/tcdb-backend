@@ -21,7 +21,7 @@ exports.podcast_list = function (req, res, next) {
 exports.podcast_detail = function (req, res, next) {
   //Exclude the episode info
   Podcast.findById(req.params.id)
-    .populate('episodes')
+    .populate({ path: 'episodes', options: { sort: { pubDate: -1 } } })
     .exec((err, results) => {
       if (err) {
         return next(err);
