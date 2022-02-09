@@ -13,6 +13,8 @@ exports.podcast_list = function (req, res, next) {
       if (err) {
         return next(err);
       }
+
+      res.set('X-Total-Count', results.length);
       res.json(results);
       next();
     });
@@ -20,22 +22,20 @@ exports.podcast_list = function (req, res, next) {
 
 exports.podcast_detail = function (req, res, next) {
   //Exclude the episode info
-  Podcast.findById(req.params.id)
-    .populate({ path: 'episodes', options: { sort: { pubDate: -1 } } })
-    .exec((err, results) => {
-      if (err) {
-        return next(err);
-      }
+  Podcast.findById(req.params.id).exec((err, results) => {
+    if (err) {
+      return next(err);
+    }
 
-      if (results === null) {
-        let error = new Error('Podcast not found');
-        error.status = 404;
-        return next(error);
-      }
+    if (results === null) {
+      let error = new Error('Podcast not found');
+      error.status = 404;
+      return next(error);
+    }
 
-      res.json(results);
-      next();
-    });
+    res.json(results);
+    next();
+  });
 };
 
 exports.podcast_delete = function (req, res, next) {
@@ -111,19 +111,27 @@ exports.podcast_delete = function (req, res, next) {
 };
 
 exports.podcast_episodes = function (req, res, next) {
-  Podcast.findById(req.params.id, 'episodes').exec((err, results) => {
-    if (err) {
-      return next(err);
-    }
+  Episode.count({ podcast: req.params.id }, (err, count) => {
+    console.log(count);
+    res.set('X-Total-Count', count);
 
-    if (results === null) {
-      let error = new Error('Podcast not found');
-      error.status = 404;
-      return next(error);
-    }
+    Episode.find({ podcast: req.params.id })
+      .skip(req.query.offset)
+      .limit(req.query.limit)
+      .sort({ pubDate: '-1' })
+      .exec((err, results) => {
+        if (err) {
+          return next(err);
+        }
 
-    res.json(results);
-    next();
+        if (results === null) {
+          let error = new Error('No Episodes Found');
+          error.status = 404;
+          return next(error);
+        }
+        res.json(results);
+        next();
+      });
   });
 };
 
