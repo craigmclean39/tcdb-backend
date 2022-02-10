@@ -20,6 +20,9 @@ let EpisodeSchema = new Schema(
     duration: { type: String },
     season: { type: Number },
     podcast: { type: Schema.Types.ObjectId, ref: 'Podcast' },
+    length: { type: String },
+    type: { type: String },
+    mediaUrl: { type: String },
   },
   { toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

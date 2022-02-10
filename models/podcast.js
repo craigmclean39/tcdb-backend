@@ -25,13 +25,7 @@ let PodcastSchema = new Schema(
     author: { type: String, es_indexed: true },
     email: { type: String },
     ownerName: { type: String, es_indexed: true },
-    /* episodes: {
-      type: [EpisodeSchema],
-      es_indexed: true,
-    }, */
-
     episodes: [{ type: Schema.Types.ObjectId, ref: 'Episode' }],
-
     dateUpdated: { type: Date, required: true },
     categories: [{ type: String, es_indexed: true }],
   },
