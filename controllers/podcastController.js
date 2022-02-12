@@ -415,6 +415,14 @@ exports.populate = async (req, res, next) => {
     'http://www.podcastone.com/podcast?categoryID2=2202',
     'http://www.podcastone.com/podcast?categoryID2=2243',
     'http://www.podcastone.com/podcast?categoryID2=1182',
+    'https://www.omnycontent.com/d/playlist/fdc2ad13-d199-4e97-b2db-a59300cb6cc2/fe61751a-7d9f-429d-920b-ac4e00ff32f7/823d6d87-634d-41a7-91b7-ac4e01008254/podcast.rss',
+    'https://feeds.megaphone.fm/88-days',
+    'https://feeds.acast.com/public/shows/6f92de96-5610-47ac-aecc-3cc2cd75d735',
+    'https://podcastfeeds.nbcnews.com/4ezcaoc8',
+    'https://feeds.megaphone.fm/monster',
+    'https://feeds.soundcloud.com/users/soundcloud:users:692523644/sounds.rss',
+    'https://feeds.megaphone.fm/TNM8759446277',
+    'https://feeds.megaphone.fm/amy-should-be-forty',
   ];
 
   await async.each(sources, AddSinglePodcastFromFeed);
