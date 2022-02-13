@@ -6,8 +6,6 @@ const bcrypt = require('bcryptjs');
 
 /* GET home page. */
 router.post('/login', function (req, res, next) {
-  console.log(req.body);
-  console.log('ASDF');
   passport.authenticate('local', (err, user, info) => {
     if (!user) {
       const e = new Error(info.message);
@@ -16,7 +14,13 @@ router.post('/login', function (req, res, next) {
       next(e);
     }
 
-    res.end();
+    console.log(user);
+    req.logIn(user, (err) => {
+      if (err) {
+        return next(err);
+      }
+      res.end();
+    });
   })(req, res, next);
 });
 
@@ -37,6 +41,11 @@ router.post('/signup', function (req, res, next) {
       res.end();
     });
   });
+});
+
+router.get('/logout', (req, res) => {
+  req.logout();
+  res.end();
 });
 
 module.exports = router;

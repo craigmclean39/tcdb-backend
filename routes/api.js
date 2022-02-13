@@ -3,6 +3,7 @@ var router = express.Router();
 
 //Controllers
 const podcast_controller = require('../controllers/podcastController');
+const user_controller = require('../controllers/userController');
 
 // GET request for list of all podcasts.
 router.get('/podcasts', podcast_controller.podcast_list);
@@ -26,5 +27,7 @@ router.post('/podcast/create', podcast_controller.podcast_create_post);
 router.post('/search', podcast_controller.search);
 
 router.post('/populate', podcast_controller.populate);
+
+router.get('/user', user_controller.user);
 
 module.exports = router;
