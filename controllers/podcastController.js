@@ -7,17 +7,27 @@ const { stripHtml } = require('string-strip-html');
 const async = require('async');
 
 exports.podcast_list = function (req, res, next) {
-  Podcast.find({}, 'title url')
-    .sort({ title: 1 })
-    .exec((err, results) => {
-      if (err) {
-        return next(err);
-      }
+  Podcast.count({}, (err, count) => {
+    res.set('X-Total-Count', count);
 
-      res.set('X-Total-Count', results.length);
-      res.json(results);
-      next();
-    });
+    Podcast.find({}, 'title image url')
+      .skip(req.query.offset)
+      .limit(req.query.limit)
+      .sort({ title: 1 })
+      .exec((err, results) => {
+        if (err) {
+          return next(err);
+        }
+
+        if (results === null) {
+          let error = new Error('No Podcasts Found');
+          error.status = 404;
+          return next(error);
+        }
+        res.json(results);
+        next();
+      });
+  });
 };
 
 exports.podcast_detail = function (req, res, next) {
