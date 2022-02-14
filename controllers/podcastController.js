@@ -240,6 +240,17 @@ exports.search = [
         },
       ],
       function (err, results) {
+        if (err) {
+          return next(err);
+        }
+        if (!results) {
+          return next(err);
+        }
+
+        if (results[0] === undefined) {
+          return next(err);
+        }
+
         const hits = [];
         results.forEach((result) => {
           hits.push(...result.hits.hits);
