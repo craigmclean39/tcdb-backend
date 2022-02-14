@@ -13,8 +13,7 @@ const apiRouter = require('./routes/api');
 
 //MongoDB Setup
 const mongoose = require('mongoose');
-const login = process.env.MONGODB_LOGIN;
-const mongoDB = `mongodb+srv://${login}@sandbox.1gheh.mongodb.net/truecrimedb?retryWrites=true&w=majority`;
+const mongoDB = process.env.MONGODB_CONNECT;
 mongoose.connect(mongoDB, { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
