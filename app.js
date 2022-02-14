@@ -35,7 +35,7 @@ app.use('/', indexRouter);
 app.use('/api', apiRouter);
 
 const rule = new schedule.RecurrenceRule();
-rule.second = 1;
+rule.minute = 1;
 
 const job = schedule.scheduleJob(rule, () => {
   updateAllPodcasts();
