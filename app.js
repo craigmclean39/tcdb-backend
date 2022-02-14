@@ -1,14 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const session = require('express-session');
-const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const dotenv = require('dotenv');
 dotenv.config();
-const bcrypt = require('bcryptjs');
+const schedule = require('node-schedule');
+const updateAllPodcasts = require('./updatePodcast.js');
 
 const indexRouter = require('./routes/index');
 const apiRouter = require('./routes/api');
@@ -30,52 +27,18 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(logger('dev'));
-
-passport.use(
-  new LocalStrategy((username, password, done) => {
-    console.log('0');
-    User.findOne({ username: username }, (err, user) => {
-      if (err) {
-        return done(err);
-      }
-
-      if (!user) {
-        return done(null, false, { message: 'Incorrect username' });
-      }
-
-      bcrypt.compare(password, user.password, (err, res) => {
-        if (res) {
-          return done(null, user);
-        } else {
-          return done(null, false, { message: 'Incorrect password' });
-        }
-      });
-    });
-  })
-);
-
-passport.serializeUser(function (user, done) {
-  console.log('serialize');
-  done(null, user.id);
-});
-
-passport.deserializeUser(function (id, done) {
-  console.log('deserialize');
-  User.findById(id, function (err, user) {
-    done(err, user);
-  });
-});
-
-app.use(session({ secret: 'cats', resave: false, saveUninitialized: true }));
-app.use(passport.initialize());
-app.use(passport.session());
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
 app.use('/api', apiRouter);
+
+const rule = new schedule.RecurrenceRule();
+rule.second = 1;
+
+const job = schedule.scheduleJob(rule, () => {
+  updateAllPodcasts();
+});
 
 module.exports = app;

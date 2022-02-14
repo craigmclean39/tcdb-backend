@@ -1,10 +1,10 @@
 const Podcast = require('../models/podcast');
 const Episode = require('../models/episode');
-const Parser = require('rss-parser');
-let parser = new Parser();
 const { body, validationResult } = require('express-validator');
 const { stripHtml } = require('string-strip-html');
 const async = require('async');
+const { getFeed } = require('../rssParser');
+const episodeFromFeed = require('../episodeFromFeed');
 
 exports.podcast_list = function (req, res, next) {
   Podcast.count({}, (err, count) => {
@@ -28,6 +28,27 @@ exports.podcast_list = function (req, res, next) {
         next();
       });
   });
+};
+
+exports.episode_list = function (req, res, next) {
+  Episode.find({})
+    .skip(req.query.offset)
+    .limit(req.query.limit)
+    .sort({ pubDate: -1 })
+    .populate('podcast')
+    .exec((err, results) => {
+      if (err) {
+        return next(err);
+      }
+
+      if (results === null) {
+        let error = new Error('No Episodes Found');
+        error.status = 404;
+        return next(error);
+      }
+      res.json(results);
+      next();
+    });
 };
 
 exports.podcast_detail = function (req, res, next) {
@@ -178,16 +199,6 @@ exports.podcast_create_post = [
   },
 ];
 
-const getFeed = async function (source, callback) {
-  try {
-    let feed = await parser.parseURL(source);
-    feed.src = source;
-    callback(null, feed);
-  } catch (err) {
-    callback(err, null);
-  }
-};
-
 exports.search = [
   body('search', 'Error').trim().isLength({ min: 1 }).escape(),
   (req, res, next) => {
@@ -260,13 +271,13 @@ exports.search = [
 ];
 
 const AddSinglePodcastFromFeed = async (rssUrl, error) => {
-  let feed;
-  await getFeed(rssUrl, (error, res) => {
-    if (error) {
-      return;
-    }
-    feed = res;
-  });
+  let feed = undefined;
+  try {
+    feed = await getFeed(rssUrl);
+  } catch (err) {
+    console.log(err);
+    return;
+  }
 
   console.log('Feed Added: ' + rssUrl);
 
@@ -335,43 +346,8 @@ const AddSinglePodcastFromFeed = async (rssUrl, error) => {
 
   let episodeDetails = [];
   feed.items.forEach((episode) => {
-    let episodeDetail = {
-      title: episode.title ? episode.title : 'EPISODE TITLE',
-      link: episode.link ? episode.link : '',
-      content: episode.content ? stripHtml(episode.content).result : '',
-      contentSnippet: episode.contentSnippet ? episode.contentSnippet : '',
-      guid: episode.guid,
-      pubDate: episode.pubDate ? episode.pubDate : '',
-      isoDate: episode.isoDate ? episode.isoDate : '',
-      duration: episode.itunes
-        ? episode.itunes.duration
-          ? episode.itunes.duration
-          : ''
-        : '',
-      season: episode.itunes
-        ? episode.itunes.season
-          ? episode.itunes.season
-          : -1
-        : -1,
-      podcast: podId,
-      length: episode.enclosure
-        ? episode.enclosure.length
-          ? episode.enclosure.length
-          : -1
-        : -1,
-      type: episode.enclosure
-        ? episode.enclosure.type
-          ? episode.enclosure.type
-          : -1
-        : -1,
-      mediaUrl: episode.enclosure
-        ? episode.enclosure.url
-          ? episode.enclosure.url
-          : -1
-        : -1,
-    };
-
-    episodeDetails.push(episodeDetail);
+    let detail = episodeFromFeed(episode, podId);
+    episodeDetails.push(detail);
   });
 
   let episodeIds = [];

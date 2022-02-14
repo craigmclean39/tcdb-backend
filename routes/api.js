@@ -8,6 +8,9 @@ const user_controller = require('../controllers/userController');
 // GET request for list of all podcasts.
 router.get('/podcasts', podcast_controller.podcast_list);
 
+// GET request for list of all episodes.
+router.get('/episodes', podcast_controller.episode_list);
+
 // GET request for single podcast
 router.get('/podcast/:id', podcast_controller.podcast_detail);
 
