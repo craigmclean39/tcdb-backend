@@ -7,11 +7,11 @@ dotenv.config();
 const schedule = require('node-schedule');
 const updateAllPodcasts = require('./updatePodcast.js');
 
+//Routers
 const indexRouter = require('./routes/index');
 const apiRouter = require('./routes/api');
 
-const User = require('./models/user');
-
+//MongoDB Setup
 const mongoose = require('mongoose');
 const login = process.env.MONGODB_LOGIN;
 const mongoDB = `mongodb+srv://${login}@sandbox.1gheh.mongodb.net/truecrimedb?retryWrites=true&w=majority`;
@@ -19,8 +19,10 @@ mongoose.connect(mongoDB, { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 
+//Express Initialization
 const app = express();
 
+//Middleware setup
 const corsOptions = {
   exposedHeaders: 'X-Total-Count',
 };
@@ -34,6 +36,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/', indexRouter);
 app.use('/api', apiRouter);
 
+//Recurring Job
 const rule = new schedule.RecurrenceRule();
 rule.minute = 1;
 

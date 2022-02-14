@@ -256,7 +256,7 @@ exports.search = [
         };
 
         hits.forEach((hit) => {
-          console.log(hit);
+          // console.log(hit);
           const hitJson = {
             type: hit._index,
             id: hit._id,
